@@ -25,7 +25,16 @@ health.get("/ready", (c) => {
   // Check DB is accessible
   try {
     db.get<{ ok: number }>(sql`SELECT 1 as ok`);
-    checks.db = true;
+
+    const schemaCheck = db.get<{ name: string }>(
+      sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'organizations'`
+    );
+
+    if (schemaCheck?.name === "organizations") {
+      checks.db = true;
+    } else {
+      checks.errors.push("Database schema not applied: organizations table is missing");
+    }
   } catch (err) {
     checks.errors.push(
       `Database not accessible: ${err instanceof Error ? err.message : "unknown"}`
