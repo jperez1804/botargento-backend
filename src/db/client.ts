@@ -1,9 +1,13 @@
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
+import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { existsSync, mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
+import pino from "pino";
 import { env } from "../config/env.js";
 import * as schema from "./schema.js";
+
+const logger = pino({ level: env.LOG_LEVEL });
 
 function createDb() {
   const dbPath = env.DATABASE_PATH;
@@ -17,7 +21,13 @@ function createDb() {
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
 
-  return drizzle(sqlite, { schema });
+  const database = drizzle(sqlite, { schema });
+  const migrationsFolder = join(import.meta.dirname, "migrations");
+
+  migrate(database, { migrationsFolder });
+  logger.info({ dbPath, migrationsFolder }, "Database migrations applied");
+
+  return database;
 }
 
 export const db = createDb();
