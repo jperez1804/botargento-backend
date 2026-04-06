@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { eq, desc } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { db } from "../db/client.js";
 import {
   onboardingSessions,
@@ -73,7 +73,7 @@ admin.get("/onboarding/:id", (c) => {
   const metaBiz = s.metaBusinessId ? db.select().from(metaBusinessAccounts).where(eq(metaBusinessAccounts.metaBusinessId, s.metaBusinessId)).get() : null;
   const waba = s.wabaId ? db.select().from(whatsappBusinessAccounts).where(eq(whatsappBusinessAccounts.wabaId, s.wabaId)).get() : null;
   const phone = s.phoneNumberId ? db.select().from(phoneNumbers).where(eq(phoneNumbers.phoneNumberId, s.phoneNumberId)).get() : null;
-  const cred = s.organizationId ? db.select().from(credentials).where(eq(credentials.organizationId, s.organizationId)).get() : null;
+  const cred = s.organizationId ? db.select().from(credentials).where(and(eq(credentials.organizationId, s.organizationId), eq(credentials.credentialType, "business_integration_token"))).get() : null;
   const logs = db.select().from(auditLogs).where(eq(auditLogs.entityId, id)).orderBy(auditLogs.createdAt).all();
 
   return c.json({
@@ -181,7 +181,10 @@ admin.post("/onboarding/:id/rotate-credentials", async (c) => {
         encryptedValue: encrypt(tokenResult.accessToken),
         rotatedAt: ts,
       })
-      .where(eq(credentials.organizationId, orgId))
+      .where(and(
+        eq(credentials.organizationId, orgId),
+        eq(credentials.credentialType, "business_integration_token"),
+      ))
       .run();
 
     writeAuditLog({

@@ -21,8 +21,8 @@ Hono + TypeScript + SQLite (better-sqlite3) + Drizzle ORM + Zod + pino + Railway
 ### Directory Structure
 - `src/config/` — Environment validation (fail-fast on missing vars)
 - `src/db/` — Drizzle schema + SQLite client (WAL mode)
-- `src/routes/` — Hono route handlers (health, embedded-signup, admin)
-- `src/services/` — Business logic (meta-auth, meta-waba, onboarding, crypto)
+- `src/routes/` — Hono route handlers (health, embedded-signup, meta-webhooks, admin)
+- `src/services/` — Business logic (meta-auth, meta-waba, onboarding, persist-assets, crypto)
 - `src/middleware/` — CORS, rate-limit, admin-auth, error-handler
 - `src/types/` — Meta API types, internal API types
 
@@ -50,21 +50,27 @@ Frontend onboarding page → POST /api/meta/embedded-signup/complete → onboard
 
 ## Environment Variables
 
+### Required
 | Variable | Description |
 |----------|-------------|
 | `META_APP_ID` | Facebook App ID |
 | `META_APP_SECRET` | Facebook App Secret |
 | `META_CONFIG_ID` | Facebook Login for Business config_id |
-| `META_SOLUTION_ID` | Tech Provider solutionID |
-| `META_SYSTEM_USER_TOKEN` | System user access token |
-| `META_API_VERSION` | Graph API version (v22.0) |
+| `META_WEBHOOK_VERIFY_TOKEN` | Verify token for Meta app-level webhook |
 | `ENCRYPTION_KEY` | 32-byte hex for AES-256-GCM |
 | `ADMIN_API_KEY` | Admin auth key |
-| `DATABASE_PATH` | SQLite file path |
-| `CORS_ORIGINS` | Comma-separated allowed origins |
-| `PORT` | Server port (3000) |
-| `NODE_ENV` | development or production |
-| `LOG_LEVEL` | pino log level |
+
+### Optional
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `META_API_VERSION` | `v25.0` | Graph API version |
+| `META_SOLUTION_ID` | — | Only if using multi-partner solution flow |
+| `META_SYSTEM_USER_TOKEN` | — | Only for optional token debug/inspection |
+| `DATABASE_PATH` | `./data/botargento.db` | SQLite file path |
+| `CORS_ORIGINS` | `https://botargento.com.ar,...` | Comma-separated allowed origins |
+| `PORT` | `3000` | Server port |
+| `NODE_ENV` | `development` | development or production |
+| `LOG_LEVEL` | `info` | pino log level |
 
 ## Reglas No Negociables
 

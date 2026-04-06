@@ -120,6 +120,25 @@ export const credentials = sqliteTable("credentials", {
   rotatedAt: text("rotated_at"),
 });
 
+// ─── onboarding_events ──────────────────────────────────────────────────────
+// Captures WA_EMBEDDED_SIGNUP window message payloads (success, cancel, error)
+export const onboardingEvents = sqliteTable("onboarding_events", {
+  id: text("id").primaryKey(),
+  sessionId: text("session_id").references(() => onboardingSessions.id),
+  eventType: text("event_type", {
+    enum: ["completed", "cancel", "error"],
+  }).notNull(),
+  metaSessionId: text("meta_session_id"),
+  currentStep: text("current_step"),
+  errorCode: text("error_code"),
+  errorMessage: text("error_message"),
+  phoneNumberId: text("phone_number_id"),
+  wabaId: text("waba_id"),
+  businessId: text("business_id"),
+  rawPayload: text("raw_payload").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+
 // ─── webhook_events ──────────────────────────────────────────────────────────
 export const webhookEvents = sqliteTable(
   "webhook_events",

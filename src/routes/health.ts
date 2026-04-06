@@ -32,13 +32,11 @@ health.get("/ready", (c) => {
     );
   }
 
-  // Check required env vars are present
+  // Check required env vars are present (optional vars excluded)
   const requiredVars = [
     "META_APP_ID",
     "META_APP_SECRET",
     "META_CONFIG_ID",
-    "META_SOLUTION_ID",
-    "META_SYSTEM_USER_TOKEN",
     "ENCRYPTION_KEY",
     "ADMIN_API_KEY",
   ] as const;

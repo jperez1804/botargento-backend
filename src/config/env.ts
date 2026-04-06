@@ -5,9 +5,12 @@ const envSchema = z.object({
   META_APP_ID: z.string().min(1, "META_APP_ID is required"),
   META_APP_SECRET: z.string().min(1, "META_APP_SECRET is required"),
   META_CONFIG_ID: z.string().min(1, "META_CONFIG_ID is required"),
-  META_SOLUTION_ID: z.string().min(1, "META_SOLUTION_ID is required"),
-  META_SYSTEM_USER_TOKEN: z.string().min(1, "META_SYSTEM_USER_TOKEN is required"),
-  META_API_VERSION: z.string().default("v22.0"),
+  META_SOLUTION_ID: z.string().min(1).optional(),
+  META_SYSTEM_USER_TOKEN: z.string().min(1).optional(),
+  META_API_VERSION: z.string().default("v25.0"),
+
+  // Webhooks
+  META_WEBHOOK_VERIFY_TOKEN: z.string().min(1, "META_WEBHOOK_VERIFY_TOKEN is required"),
 
   // Security
   ENCRYPTION_KEY: z

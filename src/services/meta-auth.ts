@@ -37,10 +37,17 @@ export async function exchangeCodeForToken(
 /**
  * Debug/inspect a token to verify scopes and validity.
  * GET /debug_token?input_token= with system user bearer token.
+ *
+ * Returns null if META_SYSTEM_USER_TOKEN is not configured (optional for Tech Provider baseline).
  */
 export async function debugToken(
   inputToken: string
-): Promise<DebugTokenResult> {
+): Promise<DebugTokenResult | null> {
+  if (!env.META_SYSTEM_USER_TOKEN) {
+    logger.info("Skipping token debug — META_SYSTEM_USER_TOKEN not configured");
+    return null;
+  }
+
   const url = new URL(`${GRAPH_BASE}/debug_token`);
   url.searchParams.set("input_token", inputToken);
 

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import pino from "pino";
 import { ulid } from "ulid";
 import { env } from "../config/env.js";
@@ -6,6 +6,7 @@ import { db } from "../db/client.js";
 import {
   organizations,
   onboardingSessions,
+  onboardingEvents,
   whatsappBusinessAccounts,
   credentials,
 } from "../db/schema.js";
@@ -13,11 +14,13 @@ import type {
   SessionDetail,
   ActivateWebhookResult,
   ReconcileResult,
+  OnboardingEventParams,
 } from "../types/api.js";
 import { subscribeAppWithOverride } from "./meta-waba.js";
 import { decrypt } from "./crypto.js";
 import { writeAuditLog, logWebhookEvent } from "./audit.js";
 import { completeSignup } from "./onboarding-complete.js";
+import { persistAssets } from "./persist-assets.js";
 
 export { completeSignup } from "./onboarding-complete.js";
 
@@ -84,6 +87,22 @@ export function getSession(sessionId: string): SessionDetail | null {
   };
 }
 
+// ─── logOnboardingEvent ─────────────────────────────────────────────────────
+export function logOnboardingEvent(params: OnboardingEventParams): { id: string } {
+  const id = ulid();
+  db.insert(onboardingEvents).values({
+    id, sessionId: params.sessionId ?? null, eventType: params.eventType,
+    metaSessionId: params.metaSessionId ?? null, currentStep: params.currentStep ?? null,
+    errorCode: params.errorCode ?? null, errorMessage: params.errorMessage ?? null,
+    phoneNumberId: params.phoneNumberId ?? null, wabaId: params.wabaId ?? null,
+    businessId: params.businessId ?? null, rawPayload: JSON.stringify(params.rawPayload),
+    createdAt: now(),
+  }).run();
+
+  logger.info({ id, sessionId: params.sessionId, eventType: params.eventType }, "Onboarding event logged");
+  return { id };
+}
+
 // ─── activateWebhook ─────────────────────────────────────────────────────────
 export async function activateWebhook(
   sessionId: string,
@@ -101,10 +120,10 @@ export async function activateWebhook(
 
   const orgId = session.organizationId!;
 
-  // Decrypt token
+  // Decrypt business integration token
   const cred = db.select().from(credentials)
-    .where(eq(credentials.organizationId, orgId)).get();
-  if (!cred) throw new Error("No credential found for organization");
+    .where(and(eq(credentials.organizationId, orgId), eq(credentials.credentialType, "business_integration_token"))).get();
+  if (!cred) throw new Error("No business_integration_token found for organization");
   const token = decrypt(cred.encryptedValue);
 
   // Log event
@@ -150,20 +169,25 @@ export async function activateWebhook(
 }
 
 // ─── reconcile ───────────────────────────────────────────────────────────────
+// Retries post-token-exchange steps using stored token. Code has 30s TTL — not retryable.
 export async function reconcile(sessionId: string): Promise<ReconcileResult> {
   const session = db.select().from(onboardingSessions)
     .where(eq(onboardingSessions.id, sessionId)).get();
   if (!session) throw new Error("Session not found");
   if (session.status !== "failed") {
     throw new Error(
-      `Cannot reconcile: session status is '${session.status}', expected 'failed'`
+      `Cannot reconcile: session status is '${session.status}', expected 'failed'`,
     );
   }
 
-  // Reset status so completeSignup accepts it
-  db.update(onboardingSessions)
-    .set({ status: "signup_completed", updatedAt: now() })
-    .where(eq(onboardingSessions.id, sessionId)).run();
+  const orgId = session.organizationId!;
+
+  // Token exchange must have already succeeded — use stored business integration token
+  const cred = db.select().from(credentials).where(and(eq(credentials.organizationId, orgId), eq(credentials.credentialType, "business_integration_token"))).get();
+  if (!cred) {
+    throw new Error("Cannot reconcile: no stored token. Token exchange never completed. Fresh Embedded Signup required.");
+  }
+  const accessToken = decrypt(cred.encryptedValue);
 
   writeAuditLog({
     entityType: "onboarding_session", entityId: sessionId,
@@ -177,18 +201,50 @@ export async function reconcile(sessionId: string): Promise<ReconcileResult> {
     processed: false,
   });
 
-  const result = await completeSignup({
-    sessionId,
-    code: "",
-    phoneNumberId: session.phoneNumberId!,
-    wabaId: session.wabaId!,
-    businessId: session.metaBusinessId!,
-  });
+  // Reset status
+  db.update(onboardingSessions)
+    .set({ status: "signup_completed", updatedAt: now() })
+    .where(eq(onboardingSessions.id, sessionId)).run();
 
-  return {
-    sessionId: result.sessionId, status: result.status,
-    completedSteps: result.completedSteps,
-    failedStep: result.failedStep, error: result.error,
-    message: result.message,
-  };
+  try {
+    const result = await persistAssets({
+      sessionId, orgId, businessId: session.metaBusinessId!,
+      wabaId: session.wabaId!, phoneNumberId: session.phoneNumberId!,
+      accessToken, scopes: cred.scopes ? JSON.parse(cred.scopes) as string[] : null,
+      expiresAt: null,
+    });
+
+    // Update session to assets_saved
+    const savedAt = now();
+    db.update(onboardingSessions)
+      .set({ status: "assets_saved", assetsSavedAt: savedAt, updatedAt: savedAt })
+      .where(eq(onboardingSessions.id, sessionId)).run();
+
+    writeAuditLog({
+      entityType: "onboarding_session", entityId: sessionId,
+      action: "status_changed", oldValue: "signup_completed", newValue: "assets_saved", actor: "admin",
+    });
+
+    logger.info({ sessionId }, "Reconcile successful: assets_saved");
+
+    return {
+      sessionId, status: "assets_saved",
+      completedSteps: result.completedSteps,
+      message: "Reconcile successful. Assets saved using stored token.",
+    };
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : "Unknown error";
+
+    db.update(onboardingSessions)
+      .set({ status: "failed", errorMessage: `reconcile: ${errorMsg}`, updatedAt: now() })
+      .where(eq(onboardingSessions.id, sessionId)).run();
+
+    logger.error({ sessionId, error: errorMsg }, "Reconcile failed");
+
+    return {
+      sessionId, status: "failed",
+      completedSteps: [], failedStep: "reconcile", error: errorMsg,
+      message: "Reconcile failed. Check error and retry or start a fresh Embedded Signup.",
+    };
+  }
 }

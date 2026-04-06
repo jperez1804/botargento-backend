@@ -4,6 +4,20 @@ export interface CompleteSignupParams {
   phoneNumberId: string;
   wabaId: string;
   businessId: string;
+  displayPhoneNumber?: string;
+}
+
+export interface OnboardingEventParams {
+  sessionId?: string;
+  eventType: "completed" | "cancel" | "error";
+  metaSessionId?: string;
+  currentStep?: string;
+  errorCode?: string;
+  errorMessage?: string;
+  phoneNumberId?: string;
+  wabaId?: string;
+  businessId?: string;
+  rawPayload: unknown;
 }
 
 export interface CompleteSignupResult {

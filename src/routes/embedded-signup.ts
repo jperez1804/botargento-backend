@@ -5,21 +5,24 @@ import {
   createSession,
   getSession,
   completeSignup,
+  logOnboardingEvent,
 } from "../services/onboarding.js";
 
 const embeddedSignup = new Hono();
 
 // ─── GET /config ─────────────────────────────────────────────────────────────
 embeddedSignup.get("/config", (c) => {
-  return c.json({
-    success: true,
-    data: {
-      app_id: env.META_APP_ID,
-      config_id: env.META_CONFIG_ID,
-      solution_id: env.META_SOLUTION_ID,
-      sdk_version: env.META_API_VERSION,
-    },
-  });
+  const data: Record<string, string> = {
+    app_id: env.META_APP_ID,
+    config_id: env.META_CONFIG_ID,
+    sdk_version: env.META_API_VERSION,
+  };
+
+  if (env.META_SOLUTION_ID) {
+    data.solution_id = env.META_SOLUTION_ID;
+  }
+
+  return c.json({ success: true, data });
 });
 
 // ─── POST /sessions ──────────────────────────────────────────────────────────
@@ -88,6 +91,7 @@ const completeSignupSchema = z.object({
   phone_number_id: z.string().min(1, "phone_number_id is required"),
   waba_id: z.string().min(1, "waba_id is required"),
   business_id: z.string().min(1, "business_id is required"),
+  display_phone_number: z.string().optional(),
 });
 
 embeddedSignup.post("/complete", async (c) => {
@@ -115,6 +119,7 @@ embeddedSignup.post("/complete", async (c) => {
       phoneNumberId: parsed.data.phone_number_id,
       wabaId: parsed.data.waba_id,
       businessId: parsed.data.business_id,
+      displayPhoneNumber: parsed.data.display_phone_number,
     });
 
     const status = result.status === "assets_saved" ? 200 : 502;
@@ -144,6 +149,55 @@ embeddedSignup.post("/complete", async (c) => {
       500
     );
   }
+});
+
+// ─── POST /events ───────────────────────────────────────────────────────────
+// Captures WA_EMBEDDED_SIGNUP window message payloads (cancel, error, completed)
+const onboardingEventSchema = z.object({
+  session_id: z.string().optional(),
+  event_type: z.enum(["completed", "cancel", "error"]),
+  meta_session_id: z.string().optional(),
+  current_step: z.string().optional(),
+  error_code: z.string().optional(),
+  error_message: z.string().optional(),
+  phone_number_id: z.string().optional(),
+  waba_id: z.string().optional(),
+  business_id: z.string().optional(),
+  raw_payload: z.unknown(),
+});
+
+embeddedSignup.post("/events", async (c) => {
+  const body = await c.req.json();
+  const parsed = onboardingEventSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Invalid request body",
+          details: parsed.error.issues,
+        },
+      },
+      400,
+    );
+  }
+
+  const result = logOnboardingEvent({
+    sessionId: parsed.data.session_id,
+    eventType: parsed.data.event_type,
+    metaSessionId: parsed.data.meta_session_id,
+    currentStep: parsed.data.current_step,
+    errorCode: parsed.data.error_code,
+    errorMessage: parsed.data.error_message,
+    phoneNumberId: parsed.data.phone_number_id,
+    wabaId: parsed.data.waba_id,
+    businessId: parsed.data.business_id,
+    rawPayload: parsed.data.raw_payload ?? {},
+  });
+
+  return c.json({ success: true, data: { event_id: result.id } }, 201);
 });
 
 export { embeddedSignup };
