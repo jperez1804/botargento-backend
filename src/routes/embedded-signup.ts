@@ -91,7 +91,7 @@ const completeSignupSchema = z.object({
   phone_number_id: z.string().min(1, "phone_number_id is required"),
   waba_id: z.string().min(1, "waba_id is required"),
   business_id: z.string().min(1, "business_id is required"),
-  display_phone_number: z.string().optional(),
+  display_phone_number: z.string().nullable().optional(),
 });
 
 embeddedSignup.post("/complete", async (c) => {
@@ -119,7 +119,7 @@ embeddedSignup.post("/complete", async (c) => {
       phoneNumberId: parsed.data.phone_number_id,
       wabaId: parsed.data.waba_id,
       businessId: parsed.data.business_id,
-      displayPhoneNumber: parsed.data.display_phone_number,
+      displayPhoneNumber: parsed.data.display_phone_number ?? undefined,
     });
 
     const status = result.status === "assets_saved" ? 200 : 502;

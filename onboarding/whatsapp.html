@@ -623,17 +623,22 @@
         throw new Error('Meta no devolvio el business_id necesario para completar el alta.');
       }
 
+      var requestBody = {
+        session_id: currentSessionId,
+        code: fbLoginResponse,
+        phone_number_id: sessionData.phone_number_id,
+        waba_id: sessionData.waba_id,
+        business_id: sessionData.business_id
+      };
+
+      if (sessionData.display_phone_number) {
+        requestBody.display_phone_number = sessionData.display_phone_number;
+      }
+
       var res = await fetch(API_BASE + '/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          session_id: currentSessionId,
-          code: fbLoginResponse,
-          phone_number_id: sessionData.phone_number_id,
-          waba_id: sessionData.waba_id,
-          business_id: sessionData.business_id,
-          display_phone_number: sessionData.display_phone_number
-        })
+        body: JSON.stringify(requestBody)
       });
 
       var body = await res.json();
