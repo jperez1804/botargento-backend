@@ -13,10 +13,11 @@ import {
 import type {
   SessionDetail,
   ActivateWebhookResult,
+  ResetWebhookResult,
   ReconcileResult,
   OnboardingEventParams,
 } from "../types/api.js";
-import { subscribeAppWithOverride } from "./meta-waba.js";
+import { subscribeApp, subscribeAppWithOverride } from "./meta-waba.js";
 import { decrypt } from "./crypto.js";
 import { writeAuditLog, logWebhookEvent } from "./audit.js";
 import { completeSignup } from "./onboarding-complete.js";
@@ -165,6 +166,67 @@ export async function activateWebhook(
     sessionId, status: "webhook_ready", wabaId: session.wabaId!,
     webhookOverrideUri: webhookUrl,
     message: "Webhook override activated. Tenant is fully onboarded.",
+  };
+}
+
+export async function resetWebhook(sessionId: string): Promise<ResetWebhookResult> {
+  const session = db.select().from(onboardingSessions)
+    .where(eq(onboardingSessions.id, sessionId)).get();
+  if (!session) throw new Error("Session not found");
+  if (session.status !== "webhook_ready") {
+    throw new Error(
+      `Cannot reset webhook: session status is '${session.status}', expected 'webhook_ready'`
+    );
+  }
+
+  const orgId = session.organizationId!;
+  const cred = db.select().from(credentials)
+    .where(and(
+      eq(credentials.organizationId, orgId),
+      eq(credentials.credentialType, "business_integration_token"),
+    )).get();
+  if (!cred) throw new Error("No business_integration_token found for organization");
+
+  const token = decrypt(cred.encryptedValue);
+
+  logWebhookEvent({
+    source: "admin_reset_webhook",
+    payload: { sessionId, wabaId: session.wabaId },
+    processed: false,
+  });
+
+  await subscribeApp(session.wabaId!, token);
+
+  const ts = now();
+  db.update(whatsappBusinessAccounts)
+    .set({ webhookOverrideActive: false, webhookOverrideUri: null, updatedAt: ts })
+    .where(eq(whatsappBusinessAccounts.wabaId, session.wabaId!)).run();
+
+  db.update(organizations)
+    .set({ tenantWebhookUrl: null, updatedAt: ts })
+    .where(eq(organizations.id, orgId)).run();
+
+  db.update(onboardingSessions)
+    .set({ status: "assets_saved", webhookReadyAt: null, updatedAt: ts })
+    .where(eq(onboardingSessions.id, sessionId)).run();
+
+  writeAuditLog({
+    entityType: "onboarding_session", entityId: sessionId,
+    action: "status_changed", oldValue: "webhook_ready", newValue: "assets_saved",
+    actor: "admin",
+  });
+  writeAuditLog({
+    entityType: "whatsapp_business_account", entityId: session.wabaId!,
+    action: "webhook_override_reset", newValue: { usesAppLevelDefault: true }, actor: "admin",
+  });
+
+  logger.info({ sessionId, wabaId: session.wabaId }, "Webhook override reset to app-level default");
+
+  return {
+    sessionId,
+    status: "assets_saved",
+    wabaId: session.wabaId!,
+    message: "Webhook override removed. WABA now uses the app-level default callback.",
   };
 }
 

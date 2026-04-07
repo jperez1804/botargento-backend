@@ -12,7 +12,7 @@ import {
   auditLogs,
 } from "../db/schema.js";
 import { adminAuth } from "../middleware/admin-auth.js";
-import { reconcile, activateWebhook } from "../services/onboarding.js";
+import { reconcile, activateWebhook, resetWebhook } from "../services/onboarding.js";
 import { exchangeCodeForToken } from "../services/meta-auth.js";
 import { encrypt } from "../services/crypto.js";
 import { writeAuditLog } from "../services/audit.js";
@@ -138,6 +138,25 @@ admin.post("/onboarding/:id/activate-webhook", async (c) => {
       return c.json({ success: false, error: { code: "NOT_FOUND", message } }, 404);
     }
     if (message.includes("Cannot activate")) {
+      return c.json({ success: false, error: { code: "CONFLICT", message } }, 409);
+    }
+    return c.json({ success: false, error: { code: "META_API_ERROR", message } }, 502);
+  }
+});
+
+// ─── POST /onboarding/:id/reset-webhook ──────────────────────────────────────
+admin.post("/onboarding/:id/reset-webhook", async (c) => {
+  const id = c.req.param("id");
+
+  try {
+    const result = await resetWebhook(id);
+    return c.json({ success: true, data: result });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    if (message.includes("not found")) {
+      return c.json({ success: false, error: { code: "NOT_FOUND", message } }, 404);
+    }
+    if (message.includes("Cannot reset")) {
       return c.json({ success: false, error: { code: "CONFLICT", message } }, 409);
     }
     return c.json({ success: false, error: { code: "META_API_ERROR", message } }, 502);

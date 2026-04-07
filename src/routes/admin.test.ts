@@ -129,6 +129,27 @@ describe("POST /api/admin/onboarding/:id/activate-webhook", () => {
   });
 });
 
+describe("POST /api/admin/onboarding/:id/reset-webhook", () => {
+  it("returns 409 when session is not webhook_ready", async () => {
+    const sessionId = await createTestSession("ResetWebhookCo");
+    const res = await app.request(`${ADMIN}/onboarding/${sessionId}/reset-webhook`, {
+      method: "POST",
+      headers: AUTH,
+    });
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error.code).toBe("CONFLICT");
+  });
+
+  it("returns 404 for nonexistent session", async () => {
+    const res = await app.request(`${ADMIN}/onboarding/nonexistent/reset-webhook`, {
+      method: "POST",
+      headers: AUTH,
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
 describe("POST /api/admin/onboarding/:id/rotate-credentials", () => {
   it("returns 400 on missing code", async () => {
     const sessionId = await createTestSession("RotateCo");

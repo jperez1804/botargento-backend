@@ -57,6 +57,13 @@ export interface ActivateWebhookResult {
   message: string;
 }
 
+export interface ResetWebhookResult {
+  sessionId: string;
+  status: string;
+  wabaId: string;
+  message: string;
+}
+
 export interface ReconcileResult {
   sessionId: string;
   status: string;
