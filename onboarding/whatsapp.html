@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BotArgento - Activar WhatsApp Business</title>
+  <meta name="description" content="Activa tu cuenta de WhatsApp Business con BotArgento en minutos." />
+  <meta name="theme-color" content="#74acdf" />
+  <link rel="icon" type="image/png" href="../favicon-64.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #070a1c;
+      --bg-2: #0a0f28;
+      --card: #121836;
+      --text: #e7ecff;
+      --muted: #a9b3d7;
+      --primary: #74acdf;
+      --primary-2: #dff3ff;
+      --accent: #9fd0f4;
+      --danger: #ff5470;
+      --success: #4ade80;
+      --warning: #fbbf24;
+      --shadow: 0 20px 50px rgba(0,0,0,.45);
+      --radius: 18px;
+      --glass: rgba(255,255,255,.06);
+      --border: rgba(116,172,223,.22);
+      --glow: rgba(116,172,223,.15);
+      --ease: cubic-bezier(.4, 0, .2, 1);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1500px 1200px at 70% 0%, rgba(116,172,223,.12), transparent 70%),
+        radial-gradient(1200px 1000px at 20% 10%, rgba(223,243,255,.08), transparent 70%),
+        radial-gradient(1800px 1200px at 50% 80%, rgba(116,172,223,.06), transparent 70%),
+        var(--bg);
+      background-attachment: fixed;
+      line-height: 1.6;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    /* Grain overlay */
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 9998;
+      pointer-events: none;
+      opacity: 0.028;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+      background-size: 200px 200px;
+    }
+
+    .card {
+      position: relative;
+      z-index: 1;
+      width: min(520px, 100%);
+      background: linear-gradient(165deg, var(--card), var(--bg-2));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 40px 36px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+    .brand img {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+    }
+    .brand span {
+      font-weight: 800;
+      font-size: 18px;
+      letter-spacing: .3px;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      margin: 0 0 8px;
+      line-height: 1.3;
+    }
+    h1 .highlight {
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      margin: 0 0 28px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    input[type="text"],
+    input[type="email"] {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--glass);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 15px;
+      outline: none;
+      transition: border-color .2s var(--ease), box-shadow .2s var(--ease);
+    }
+    input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--glow);
+    }
+    input::placeholder {
+      color: var(--muted);
+      opacity: .5;
+    }
+
+    .field { margin-bottom: 16px; }
+    .field-optional {
+      font-size: 11px;
+      color: var(--muted);
+      opacity: .7;
+      margin-left: 4px;
+      font-weight: 400;
+      text-transform: none;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 14px 24px;
+      border: none;
+      border-radius: 12px;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .25s var(--ease);
+      margin-top: 8px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: var(--bg);
+    }
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(116,172,223,.3);
+    }
+    .btn-primary:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .btn-wa {
+      background: #25D366;
+      color: #fff;
+    }
+    .btn-wa:hover:not(:disabled) {
+      background: #20bd5a;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(37,211,102,.3);
+    }
+    .btn-wa:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    /* Steps / states */
+    .step { display: none; }
+    .step.active { display: block; }
+
+    /* Progress indicator */
+    .progress-bar {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 28px;
+    }
+    .progress-bar .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: background .3s var(--ease);
+    }
+    .progress-bar .dot.done { background: var(--primary); }
+    .progress-bar .dot.current {
+      background: var(--primary);
+      box-shadow: 0 0 8px var(--glow);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .5; }
+    }
+
+    /* Status messages */
+    .status-box {
+      padding: 16px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.5;
+      margin-top: 16px;
+    }
+    .status-box.info {
+      background: rgba(116,172,223,.1);
+      border: 1px solid rgba(116,172,223,.25);
+      color: var(--accent);
+    }
+    .status-box.success {
+      background: rgba(74,222,128,.1);
+      border: 1px solid rgba(74,222,128,.25);
+      color: var(--success);
+    }
+    .status-box.error {
+      background: rgba(255,84,112,.1);
+      border: 1px solid rgba(255,84,112,.25);
+      color: var(--danger);
+    }
+    .status-box.warning {
+      background: rgba(251,191,36,.1);
+      border: 1px solid rgba(251,191,36,.25);
+      color: var(--warning);
+    }
+
+    /* Spinner */
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2.5px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 16px;
+    }
+
+    /* Result details */
+    .result-detail {
+      margin-top: 16px;
+      padding: 14px;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 13px;
+    }
+    .result-detail dt {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-top: 8px;
+    }
+    .result-detail dt:first-child { margin-top: 0; }
+    .result-detail dd {
+      margin: 2px 0 0;
+      font-family: monospace;
+      word-break: break-all;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-top: 20px;
+      color: var(--primary);
+      font-size: 14px;
+      text-decoration: none;
+      opacity: .8;
+      transition: opacity .2s;
+    }
+    .back-link:hover { opacity: 1; }
+
+    /* WhatsApp icon */
+    .wa-icon {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      .card { padding: 28px 20px; }
+      h1 { font-size: 19px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="brand">
+    <img src="../logo-icon.png" alt="" />
+    <span>BotArgento</span>
+  </div>
+
+  <div class="progress-bar">
+    <div class="dot" id="dot-1"></div>
+    <div class="dot" id="dot-2"></div>
+    <div class="dot" id="dot-3"></div>
+  </div>
+
+  <!-- Step 1: Organization info -->
+  <div class="step active" id="step-org">
+    <h1>Activa <span class="highlight">WhatsApp Business</span></h1>
+    <p class="subtitle">
+      Conecta tu cuenta de WhatsApp Business a BotArgento en minutos.
+      Necesitas una cuenta de Meta Business (Facebook) para continuar.
+    </p>
+
+    <div class="field">
+      <label for="org-name">Nombre de tu empresa</label>
+      <input type="text" id="org-name" placeholder="Ej: Mi Empresa SRL" required />
+    </div>
+
+    <div class="field">
+      <label for="contact-email">
+        Email de contacto
+        <span class="field-optional">(opcional)</span>
+      </label>
+      <input type="email" id="contact-email" placeholder="contacto@miempresa.com" />
+    </div>
+
+    <button class="btn btn-primary" id="btn-create-session">
+      Continuar
+    </button>
+
+    <div id="org-error"></div>
+  </div>
+
+  <!-- Step 2: Launch Embedded Signup -->
+  <div class="step" id="step-signup">
+    <h1>Conectar <span class="highlight">WhatsApp</span></h1>
+    <p class="subtitle">
+      Haz clic en el boton para iniciar el proceso de Meta Embedded Signup.
+      Se abrira una ventana de Facebook donde podras vincular o crear tu cuenta de WhatsApp Business.
+    </p>
+
+    <button class="btn btn-wa" id="btn-launch-signup">
+      <svg class="wa-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+      </svg>
+      Conectar WhatsApp Business
+    </button>
+
+    <div id="signup-status"></div>
+  </div>
+
+  <!-- Step 3: Processing / Result -->
+  <div class="step" id="step-result">
+    <div id="result-content"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const API_BASE = 'https://botargento-backend-production.up.railway.app/api/meta/embedded-signup';
+
+  // State
+  let metaConfig = null;
+  let currentSessionId = null;
+  let sessionData = {};
+  let fbLoginResponse = null;
+  let sdkReady = false;
+
+  // DOM refs
+  const stepOrg = document.getElementById('step-org');
+  const stepSignup = document.getElementById('step-signup');
+  const stepResult = document.getElementById('step-result');
+  const dots = [
+    document.getElementById('dot-1'),
+    document.getElementById('dot-2'),
+    document.getElementById('dot-3')
+  ];
+  const orgNameInput = document.getElementById('org-name');
+  const contactEmailInput = document.getElementById('contact-email');
+  const btnCreateSession = document.getElementById('btn-create-session');
+  const btnLaunchSignup = document.getElementById('btn-launch-signup');
+  const orgError = document.getElementById('org-error');
+  const signupStatus = document.getElementById('signup-status');
+  const resultContent = document.getElementById('result-content');
+
+  // --- Step navigation ---
+  function showStep(stepNum) {
+    [stepOrg, stepSignup, stepResult].forEach(function (el, i) {
+      el.classList.toggle('active', i === stepNum - 1);
+    });
+    dots.forEach(function (dot, i) {
+      dot.className = 'dot';
+      if (i < stepNum - 1) dot.classList.add('done');
+      if (i === stepNum - 1) dot.classList.add('current');
+    });
+  }
+
+  // --- Fetch Meta config ---
+  async function fetchConfig() {
+    try {
+      var res = await fetch(API_BASE + '/config');
+      if (!res.ok) throw new Error('No se pudo obtener la configuracion');
+      var body = await res.json();
+      metaConfig = body.data;
+    } catch (err) {
+      showOrgError('Error al conectar con el servidor. Intenta de nuevo mas tarde.');
+      btnCreateSession.disabled = true;
+      console.error('fetchConfig error:', err);
+    }
+  }
+
+  // --- Load Facebook SDK ---
+  function loadFBSDK() {
+    window.fbAsyncInit = function () {
+      if (!metaConfig) return;
+      FB.init({
+        appId: metaConfig.app_id,
+        autoLogAppEvents: true,
+        cookie: true,
+        xfbml: true,
+        version: metaConfig.sdk_version
+      });
+      sdkReady = true;
+    };
+
+    var script = document.createElement('script');
+    script.async = true;
+    script.defer = true;
+    script.crossOrigin = 'anonymous';
+    script.src = 'https://connect.facebook.net/en_US/sdk.js';
+    document.head.appendChild(script);
+  }
+
+  // --- WA_EMBEDDED_SIGNUP message listener ---
+  window.addEventListener('message', function (event) {
+    if (event.origin !== 'https://www.facebook.com' &&
+        event.origin !== 'https://web.facebook.com') return;
+    try {
+      var data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+      if (data.type !== 'WA_EMBEDDED_SIGNUP') return;
+
+      if (data.event === 'FINISH' || data.event === 'FINISH_ONLY_WABA') {
+        sessionData.phone_number_id = data.data.phone_number_id;
+        sessionData.waba_id = data.data.waba_id;
+        sessionData.business_id = data.data.business_id || data.data.businessId || null;
+        sessionData.display_phone_number = data.data.display_phone_number || null;
+        logOnboardingEvent('completed', data.data);
+        // If we already have the FB.login code, complete now
+        if (fbLoginResponse) {
+          completeSignup();
+        }
+      }
+
+      if (data.event === 'CANCEL') {
+        logOnboardingEvent('cancel', data.data);
+        showSignupStatus('warning',
+          'Proceso cancelado en el paso: ' + (data.data.current_step || 'desconocido') +
+          '. Podes intentar nuevamente.'
+        );
+        btnLaunchSignup.disabled = false;
+      }
+
+      if (data.event === 'ERROR') {
+        logOnboardingEvent('error', data.data);
+        showSignupStatus('error',
+          'Error durante el proceso: ' + (data.data.error_message || 'Error desconocido')
+        );
+        btnLaunchSignup.disabled = false;
+      }
+    } catch (e) {
+      // Ignore non-JSON messages
+    }
+  });
+
+  // --- Create session ---
+  btnCreateSession.addEventListener('click', async function () {
+    var orgName = orgNameInput.value.trim();
+    var email = contactEmailInput.value.trim();
+
+    if (!orgName) {
+      showOrgError('Ingresa el nombre de tu empresa.');
+      return;
+    }
+
+    clearOrgError();
+    btnCreateSession.disabled = true;
+    btnCreateSession.textContent = 'Creando sesion...';
+
+    try {
+      var payload = { organization_name: orgName };
+      if (email) payload.contact_email = email;
+
+      var res = await fetch(API_BASE + '/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      var body = await res.json();
+
+      if (!res.ok) {
+        var msg = body.error ? body.error.message : 'Error al crear la sesion';
+        if (body.error && body.error.details) {
+          msg += ': ' + body.error.details.map(function (d) { return d.message; }).join(', ');
+        }
+        showOrgError(msg);
+        btnCreateSession.disabled = false;
+        btnCreateSession.textContent = 'Continuar';
+        return;
+      }
+
+      currentSessionId = body.data.session_id;
+      showStep(2);
+
+      // If SDK not ready yet, wait
+      if (!sdkReady) {
+        showSignupStatus('info', 'Cargando Facebook SDK...');
+        await waitForSDK();
+        clearSignupStatus();
+      }
+    } catch (err) {
+      showOrgError('Error de red. Verifica tu conexion e intenta de nuevo.');
+      btnCreateSession.disabled = false;
+      btnCreateSession.textContent = 'Continuar';
+      console.error('createSession error:', err);
+    }
+  });
+
+  // --- Launch FB Embedded Signup ---
+  btnLaunchSignup.addEventListener('click', function () {
+    if (!sdkReady || !metaConfig) {
+      showSignupStatus('error', 'Facebook SDK no esta listo. Recarga la pagina.');
+      return;
+    }
+
+    btnLaunchSignup.disabled = true;
+    showSignupStatus('info', 'Abriendo ventana de Meta...');
+
+    // Reset state for this attempt
+    sessionData = {};
+    fbLoginResponse = null;
+
+    var extras = {
+      featureType: 'whatsapp_embedded_signup',
+      sessionInfoVersion: '3'
+    };
+
+    if (metaConfig.solution_id) {
+      extras.setup = { solutionID: metaConfig.solution_id };
+    }
+
+    FB.login(function (response) {
+      if (response.authResponse && response.authResponse.code) {
+        fbLoginResponse = response.authResponse.code;
+        // If we already have session data from FINISH event, complete now
+        if (sessionData.phone_number_id) {
+          completeSignup();
+        } else {
+          showSignupStatus('info', 'Esperando datos de WhatsApp Business...');
+        }
+      } else {
+        showSignupStatus('warning', 'No se obtuvo autorizacion. Podes intentar nuevamente.');
+        btnLaunchSignup.disabled = false;
+      }
+    }, {
+      config_id: metaConfig.config_id,
+      response_type: 'code',
+      override_default_response_type: true,
+      extras: extras
+    });
+  });
+
+  // --- Complete signup ---
+  async function completeSignup() {
+    showStep(3);
+    resultContent.innerHTML =
+      '<h1>Procesando...</h1>' +
+      '<p class="subtitle">Configurando tu cuenta de WhatsApp Business. Esto puede tardar unos segundos.</p>' +
+      '<div class="loading-text"><span class="spinner"></span> Intercambiando credenciales con Meta...</div>';
+
+    try {
+      if (!sessionData.business_id) {
+        throw new Error('Meta no devolvio el business_id necesario para completar el alta.');
+      }
+
+      var res = await fetch(API_BASE + '/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: currentSessionId,
+          code: fbLoginResponse,
+          phone_number_id: sessionData.phone_number_id,
+          waba_id: sessionData.waba_id,
+          business_id: sessionData.business_id,
+          display_phone_number: sessionData.display_phone_number
+        })
+      });
+
+      var body = await res.json();
+
+      if (res.ok && body.success) {
+        showSuccess(body.data);
+      } else {
+        var errMsg = body.error ? body.error.message : 'Error desconocido';
+        showError(errMsg);
+      }
+    } catch (err) {
+      var message = err && err.message
+        ? err.message
+        : 'Error de red al completar el proceso. Contacta a soporte.';
+      showError(message);
+      console.error('completeSignup error:', err);
+    }
+  }
+
+  // --- Poll session status (fallback) ---
+  async function pollSession(sessionId, maxAttempts) {
+    for (var i = 0; i < (maxAttempts || 10); i++) {
+      await sleep(3000);
+      try {
+        var res = await fetch(API_BASE + '/sessions/' + sessionId);
+        var body = await res.json();
+        if (body.data && body.data.status === 'assets_saved') return body.data;
+        if (body.data && body.data.status === 'failed') return body.data;
+      } catch (e) {
+        // Keep polling
+      }
+    }
+    return null;
+  }
+
+  // --- UI helpers ---
+  function showSuccess(data) {
+    resultContent.innerHTML =
+      '<h1><span class="highlight">Listo!</span></h1>' +
+      '<p class="subtitle">Tu cuenta de WhatsApp Business se configuro correctamente.</p>' +
+      '<div class="status-box success">' +
+        'La cuenta fue vinculada exitosamente. El equipo de BotArgento activara tu webhook y te contactara con los proximos pasos.' +
+      '</div>' +
+      '<dl class="result-detail">' +
+        '<dt>Session ID</dt>' +
+        '<dd>' + escapeHtml(data.session_id || currentSessionId) + '</dd>' +
+        '<dt>WABA ID</dt>' +
+        '<dd>' + escapeHtml(data.waba_id || sessionData.waba_id || '-') + '</dd>' +
+        '<dt>Phone Number ID</dt>' +
+        '<dd>' + escapeHtml(data.phone_number_id || sessionData.phone_number_id || '-') + '</dd>' +
+        '<dt>Estado</dt>' +
+        '<dd>' + escapeHtml(data.status || 'assets_saved') + '</dd>' +
+      '</dl>' +
+      '<a class="back-link" href="../index.html">&larr; Volver a BotArgento</a>';
+    dots.forEach(function (d) { d.className = 'dot done'; });
+  }
+
+  function showError(message) {
+    resultContent.innerHTML =
+      '<h1>Hubo un problema</h1>' +
+      '<p class="subtitle">No pudimos completar la configuracion de tu cuenta.</p>' +
+      '<div class="status-box error">' + escapeHtml(message) + '</div>' +
+      '<p style="color:var(--muted);font-size:13px;margin-top:16px;">' +
+        'Session ID: <code>' + escapeHtml(currentSessionId || '-') + '</code><br>' +
+        'Comparti este ID con soporte si necesitas ayuda.' +
+      '</p>' +
+      '<button class="btn btn-primary" onclick="location.reload()" style="margin-top:12px;">Intentar de nuevo</button>' +
+      '<a class="back-link" href="../index.html">&larr; Volver a BotArgento</a>';
+  }
+
+  function showOrgError(msg) {
+    orgError.innerHTML = '<div class="status-box error" style="margin-top:12px;">' + escapeHtml(msg) + '</div>';
+  }
+
+  function clearOrgError() {
+    orgError.innerHTML = '';
+  }
+
+  function showSignupStatus(type, msg) {
+    signupStatus.innerHTML = '<div class="status-box ' + type + '" style="margin-top:16px;">' + escapeHtml(msg) + '</div>';
+  }
+
+  function clearSignupStatus() {
+    signupStatus.innerHTML = '';
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    var div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+  }
+
+  function sleep(ms) {
+    return new Promise(function (resolve) { setTimeout(resolve, ms); });
+  }
+
+  function waitForSDK() {
+    return new Promise(function (resolve) {
+      var interval = setInterval(function () {
+        if (sdkReady) {
+          clearInterval(interval);
+          resolve();
+        }
+      }, 200);
+      // Timeout after 15s
+      setTimeout(function () {
+        clearInterval(interval);
+        resolve();
+      }, 15000);
+    });
+  }
+
+  async function logOnboardingEvent(eventType, payload) {
+    if (!currentSessionId) return;
+
+    var requestBody = {
+      session_id: currentSessionId,
+      event_type: eventType,
+      meta_session_id: payload.session_id || payload.sessionId,
+      current_step: payload.current_step,
+      error_code: payload.error_code,
+      error_message: payload.error_message,
+      phone_number_id: payload.phone_number_id,
+      waba_id: payload.waba_id,
+      business_id: payload.business_id || payload.businessId,
+      raw_payload: payload
+    };
+
+    try {
+      await fetch(API_BASE + '/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+    } catch (err) {
+      console.warn('No se pudo registrar el evento de onboarding:', err);
+    }
+  }
+
+  // --- Init ---
+  showStep(1);
+  fetchConfig().then(function () {
+    loadFBSDK();
+  });
+})();
+</script>
+
+</body>
+</html>

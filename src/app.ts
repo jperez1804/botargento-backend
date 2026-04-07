@@ -5,6 +5,7 @@ import { publicRateLimit, adminRateLimit } from "./middleware/rate-limit.js";
 import { health } from "./routes/health.js";
 import { embeddedSignup } from "./routes/embedded-signup.js";
 import { metaWebhooks } from "./routes/meta-webhooks.js";
+import { metaPlatform } from "./routes/meta-platform.js";
 import { admin } from "./routes/admin.js";
 
 export function createApp() {
@@ -26,6 +27,9 @@ export function createApp() {
 
   // Meta app-level webhook (control-plane: verification + account_update events)
   app.route("/api/webhooks/meta/whatsapp", metaWebhooks);
+
+  // Meta platform callbacks (deauthorize + data deletion)
+  app.route("/api/meta/platform", metaPlatform);
 
   // Admin routes (X-Admin-Key auth, applied inside admin router)
   app.route("/api/admin", admin);
