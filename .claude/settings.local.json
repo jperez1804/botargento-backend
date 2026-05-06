@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(node -e \"console.log\\(''ENCRYPTION_KEY='' + require\\(''crypto''\\).randomBytes\\(32\\).toString\\(''hex''\\)\\)\")",
+      "Bash(node -e \"console.log\\(''ADMIN_API_KEY='' + require\\(''crypto''\\).randomBytes\\(32\\).toString\\(''hex''\\)\\)\")",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm db:generate)",
+      "Bash(wc -l C:Desarollojperezn8nbotargento-backendsrcservices*.ts C:Desarollojperezn8nbotargento-backendsrcroutes*.ts)"
+    ]
+  }
+}
