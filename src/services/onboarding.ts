@@ -21,7 +21,7 @@ import { subscribeApp, subscribeAppWithOverride } from "./meta-waba.js";
 import { decrypt } from "./crypto.js";
 import { writeAuditLog, logWebhookEvent } from "./audit.js";
 import { completeSignup } from "./onboarding-complete.js";
-import { persistAssets } from "./persist-assets.js";
+import { persistAssets, getOrgAccessToken, type SignupType } from "./persist-assets.js";
 
 export { completeSignup } from "./onboarding-complete.js";
 
@@ -77,6 +77,7 @@ export function getSession(sessionId: string): SessionDetail | null {
     id: session.id,
     organizationId: session.organizationId,
     status: session.status,
+    signupType: session.signupType,
     metaBusinessId: session.metaBusinessId,
     wabaId: session.wabaId,
     phoneNumberId: session.phoneNumberId,
@@ -121,11 +122,8 @@ export async function activateWebhook(
 
   const orgId = session.organizationId!;
 
-  // Decrypt business integration token
-  const cred = db.select().from(credentials)
-    .where(and(eq(credentials.organizationId, orgId), eq(credentials.credentialType, "business_integration_token"))).get();
-  if (!cred) throw new Error("No business_integration_token found for organization");
-  const token = decrypt(cred.encryptedValue);
+  const token = getOrgAccessToken(orgId);
+  if (!token) throw new Error("No access token found for organization");
 
   // Log event
   logWebhookEvent({
@@ -180,14 +178,8 @@ export async function resetWebhook(sessionId: string): Promise<ResetWebhookResul
   }
 
   const orgId = session.organizationId!;
-  const cred = db.select().from(credentials)
-    .where(and(
-      eq(credentials.organizationId, orgId),
-      eq(credentials.credentialType, "business_integration_token"),
-    )).get();
-  if (!cred) throw new Error("No business_integration_token found for organization");
-
-  const token = decrypt(cred.encryptedValue);
+  const token = getOrgAccessToken(orgId);
+  if (!token) throw new Error("No access token found for organization");
 
   logWebhookEvent({
     source: "admin_reset_webhook",
@@ -244,8 +236,10 @@ export async function reconcile(sessionId: string): Promise<ReconcileResult> {
 
   const orgId = session.organizationId!;
 
-  // Token exchange must have already succeeded — use stored business integration token
-  const cred = db.select().from(credentials).where(and(eq(credentials.organizationId, orgId), eq(credentials.credentialType, "business_integration_token"))).get();
+  // Token exchange must have already succeeded — use the stored token (business
+  // integration token from Embedded Signup, or system user token from an import)
+  const cred = db.select().from(credentials).where(and(eq(credentials.organizationId, orgId), eq(credentials.credentialType, "business_integration_token"))).get()
+    ?? db.select().from(credentials).where(and(eq(credentials.organizationId, orgId), eq(credentials.credentialType, "system_user_token"))).get();
   if (!cred) {
     throw new Error("Cannot reconcile: no stored token. Token exchange never completed. Fresh Embedded Signup required.");
   }
@@ -274,6 +268,8 @@ export async function reconcile(sessionId: string): Promise<ReconcileResult> {
       wabaId: session.wabaId!, phoneNumberId: session.phoneNumberId!,
       accessToken, scopes: cred.scopes ? JSON.parse(cred.scopes) as string[] : null,
       expiresAt: null,
+      signupType: session.signupType,
+      credentialType: cred.credentialType,
     });
 
     // Update session to assets_saved
@@ -307,6 +303,77 @@ export async function reconcile(sessionId: string): Promise<ReconcileResult> {
       sessionId, status: "failed",
       completedSteps: [], failedStep: "reconcile", error: errorMsg,
       message: "Reconcile failed. Check error and retry or start a fresh Embedded Signup.",
+    };
+  }
+}
+
+// ─── importOnboarding ───────────────────────────────────────────────────────
+// Admin path for a number that was connected outside our Embedded Signup flow (e.g. a
+// test onboarding whose code was never exchanged): an admin supplies a system user
+// token with access to the WABA, and the usual post-token steps run with it.
+export interface ImportOnboardingParams {
+  organizationName: string;
+  contactEmail?: string;
+  businessId: string;
+  wabaId: string;
+  phoneNumberId: string;
+  displayPhoneNumber?: string;
+  signupType: SignupType;
+  accessToken: string;
+}
+
+export async function importOnboarding(params: ImportOnboardingParams): Promise<ReconcileResult> {
+  const existing = db.select({ id: whatsappBusinessAccounts.id }).from(whatsappBusinessAccounts)
+    .where(eq(whatsappBusinessAccounts.wabaId, params.wabaId)).get();
+  if (existing) {
+    throw new Error(`Cannot import: WABA ${params.wabaId} is already onboarded`);
+  }
+
+  const { sessionId, organizationId: orgId } = createSession(params.organizationName, params.contactEmail);
+  const ts = now();
+  db.update(onboardingSessions).set({
+    status: "signup_completed", signupType: params.signupType,
+    metaBusinessId: params.businessId, wabaId: params.wabaId,
+    phoneNumberId: params.phoneNumberId, completedAt: ts, updatedAt: ts,
+  }).where(eq(onboardingSessions.id, sessionId)).run();
+
+  writeAuditLog({
+    entityType: "onboarding_session", entityId: sessionId,
+    action: "imported", newValue: { signupType: params.signupType, wabaId: params.wabaId },
+    actor: "admin",
+  });
+
+  try {
+    const result = await persistAssets({
+      sessionId, orgId, businessId: params.businessId,
+      wabaId: params.wabaId, phoneNumberId: params.phoneNumberId,
+      displayPhoneNumber: params.displayPhoneNumber,
+      accessToken: params.accessToken, scopes: null, expiresAt: null,
+      signupType: params.signupType, credentialType: "system_user_token",
+    });
+
+    const savedAt = now();
+    db.update(onboardingSessions)
+      .set({ status: "assets_saved", assetsSavedAt: savedAt, updatedAt: savedAt })
+      .where(eq(onboardingSessions.id, sessionId)).run();
+
+    logger.info({ sessionId, wabaId: params.wabaId }, "Import complete: assets_saved");
+
+    return {
+      sessionId, status: "assets_saved", completedSteps: result.completedSteps,
+      message: "Imported. Webhook override pending — activate when tenant infra is ready.",
+    };
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : "Unknown error";
+    db.update(onboardingSessions)
+      .set({ status: "failed", errorMessage: `import: ${errorMsg}`, updatedAt: now() })
+      .where(eq(onboardingSessions.id, sessionId)).run();
+
+    logger.error({ sessionId, error: errorMsg }, "Import failed");
+
+    return {
+      sessionId, status: "failed", completedSteps: [], failedStep: "import", error: errorMsg,
+      message: "Import failed. The token is stored — fix the cause and use reconcile.",
     };
   }
 }

@@ -92,6 +92,9 @@ const completeSignupSchema = z.object({
   waba_id: z.string().min(1, "waba_id is required"),
   business_id: z.string().min(1, "business_id is required"),
   display_phone_number: z.string().nullable().optional(),
+  // "coexistence" when the page launched with featureType whatsapp_business_app_onboarding
+  // and got FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING.
+  signup_type: z.enum(["standard", "coexistence"]).optional(),
 });
 
 embeddedSignup.post("/complete", async (c) => {
@@ -120,6 +123,7 @@ embeddedSignup.post("/complete", async (c) => {
       wabaId: parsed.data.waba_id,
       businessId: parsed.data.business_id,
       displayPhoneNumber: parsed.data.display_phone_number ?? undefined,
+      signupType: parsed.data.signup_type,
     });
 
     const status = result.status === "assets_saved" ? 200 : 502;

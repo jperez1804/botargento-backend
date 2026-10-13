@@ -12,7 +12,7 @@ import {
   auditLogs,
 } from "../db/schema.js";
 import { adminAuth } from "../middleware/admin-auth.js";
-import { reconcile, activateWebhook, resetWebhook } from "../services/onboarding.js";
+import { reconcile, activateWebhook, resetWebhook, importOnboarding } from "../services/onboarding.js";
 import { exchangeCodeForToken } from "../services/meta-auth.js";
 import { encrypt } from "../services/crypto.js";
 import { writeAuditLog } from "../services/audit.js";
@@ -73,20 +73,23 @@ admin.get("/onboarding/:id", (c) => {
   const metaBiz = s.metaBusinessId ? db.select().from(metaBusinessAccounts).where(eq(metaBusinessAccounts.metaBusinessId, s.metaBusinessId)).get() : null;
   const waba = s.wabaId ? db.select().from(whatsappBusinessAccounts).where(eq(whatsappBusinessAccounts.wabaId, s.wabaId)).get() : null;
   const phone = s.phoneNumberId ? db.select().from(phoneNumbers).where(eq(phoneNumbers.phoneNumberId, s.phoneNumberId)).get() : null;
-  const cred = s.organizationId ? db.select().from(credentials).where(and(eq(credentials.organizationId, s.organizationId), eq(credentials.credentialType, "business_integration_token"))).get() : null;
+  const cred = s.organizationId
+    ? db.select().from(credentials).where(and(eq(credentials.organizationId, s.organizationId), eq(credentials.credentialType, "business_integration_token"))).get()
+      ?? db.select().from(credentials).where(and(eq(credentials.organizationId, s.organizationId), eq(credentials.credentialType, "system_user_token"))).get()
+    : null;
   const logs = db.select().from(auditLogs).where(eq(auditLogs.entityId, id)).orderBy(auditLogs.createdAt).all();
 
   return c.json({
     success: true,
     data: {
       session: {
-        id: s.id, status: s.status, started_at: s.startedAt, completed_at: s.completedAt,
+        id: s.id, status: s.status, signup_type: s.signupType, started_at: s.startedAt, completed_at: s.completedAt,
         assets_saved_at: s.assetsSavedAt, webhook_ready_at: s.webhookReadyAt, error_message: s.errorMessage,
       },
       organization: org ? { id: org.id, name: org.name, tenant_subdomain: org.tenantSubdomain, tenant_webhook_url: org.tenantWebhookUrl } : null,
       meta_business: metaBiz ? { meta_business_id: metaBiz.metaBusinessId, business_name: metaBiz.businessName } : null,
       waba: waba ? { waba_id: waba.wabaId, app_subscribed: waba.appSubscribed, webhook_override_active: waba.webhookOverrideActive, webhook_override_uri: waba.webhookOverrideUri } : null,
-      phone: phone ? { phone_number_id: phone.phoneNumberId, display_phone_number: phone.displayPhoneNumber, registered: phone.registered } : null,
+      phone: phone ? { phone_number_id: phone.phoneNumberId, display_phone_number: phone.displayPhoneNumber, registered: phone.registered, signup_type: phone.signupType, contacts_sync_requested_at: phone.contactsSyncRequestedAt, history_sync_requested_at: phone.historySyncRequestedAt } : null,
       credential: cred ? { credential_type: cred.credentialType, scopes: cred.scopes ? JSON.parse(cred.scopes) : null, expires_at: cred.expiresAt, created_at: cred.createdAt, rotated_at: cred.rotatedAt } : null,
       audit_log: logs.map((l) => ({ action: l.action, old_value: l.oldValue ? JSON.parse(l.oldValue) : null, new_value: l.newValue ? JSON.parse(l.newValue) : null, actor: l.actor, created_at: l.createdAt })),
     },
@@ -105,6 +108,56 @@ admin.post("/onboarding/:id/reconcile", async (c) => {
       return c.json({ success: false, error: { code: "NOT_FOUND", message } }, 404);
     }
     if (message.includes("Cannot reconcile")) {
+      return c.json({ success: false, error: { code: "CONFLICT", message } }, 409);
+    }
+    return c.json({ success: false, error: { code: "INTERNAL_ERROR", message } }, 500);
+  }
+});
+
+// ─── POST /onboarding/import ─────────────────────────────────────────────────
+// Registers a number connected outside our Embedded Signup flow, using a system user
+// token with access to its WABA. Coexistence imports request the app data sync.
+const importSchema = z.object({
+  organization_name: z.string().min(1, "organization_name is required"),
+  contact_email: z.string().email().optional(),
+  business_id: z.string().min(1, "business_id is required"),
+  waba_id: z.string().min(1, "waba_id is required"),
+  phone_number_id: z.string().min(1, "phone_number_id is required"),
+  display_phone_number: z.string().optional(),
+  signup_type: z.enum(["standard", "coexistence"]),
+  access_token: z.string().min(1, "access_token is required"),
+});
+
+admin.post("/onboarding/import", async (c) => {
+  const body = await c.req.json();
+  const parsed = importSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return c.json({
+      success: false,
+      // Never echo the body back: it carries the token
+      error: {
+        code: "VALIDATION_ERROR", message: "Invalid request body",
+        details: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })),
+      },
+    }, 400);
+  }
+
+  try {
+    const result = await importOnboarding({
+      organizationName: parsed.data.organization_name,
+      contactEmail: parsed.data.contact_email,
+      businessId: parsed.data.business_id,
+      wabaId: parsed.data.waba_id,
+      phoneNumberId: parsed.data.phone_number_id,
+      displayPhoneNumber: parsed.data.display_phone_number,
+      signupType: parsed.data.signup_type,
+      accessToken: parsed.data.access_token,
+    });
+    return c.json({ success: result.status !== "failed", data: result }, result.status === "failed" ? 502 : 201);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    if (message.includes("Cannot import")) {
       return c.json({ success: false, error: { code: "CONFLICT", message } }, 409);
     }
     return c.json({ success: false, error: { code: "INTERNAL_ERROR", message } }, 500);

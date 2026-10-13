@@ -53,6 +53,13 @@ export interface MetaRegisterPhoneResponse {
   success: boolean;
 }
 
+// ─── WhatsApp Business app data sync (Coexistence) ──────────────────────────
+// POST /{phone_number_id}/smb_app_data response
+export interface MetaSmbAppDataResponse {
+  messaging_product?: string;
+  request_id?: string;
+}
+
 // ─── Graph API Error ─────────────────────────────────────────────────────────
 export interface MetaGraphApiError {
   error: {
