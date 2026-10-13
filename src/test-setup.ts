@@ -1,22 +1,4 @@
-import { sql } from "drizzle-orm";
-import { db } from "./db/client.js";
-
-// Read and apply migration SQL for in-memory DB
-import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
-
-const migrationsDir = join(import.meta.dirname, "db", "migrations");
-const files = readdirSync(migrationsDir)
-  .filter((f) => f.endsWith(".sql"))
-  .sort();
-
-for (const file of files) {
-  const content = readFileSync(join(migrationsDir, file), "utf-8");
-  const statements = content
-    .split("--> statement-breakpoint")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  for (const stmt of statements) {
-    db.run(sql.raw(stmt));
-  }
-}
+// The in-memory DB (DATABASE_PATH=":memory:") is migrated by db/client.ts on import
+// via drizzle's migrator — re-applying the SQL files here made every suite fail with
+// "table already exists".
+import "./db/client.js";
