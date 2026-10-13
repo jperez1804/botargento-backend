@@ -97,7 +97,7 @@ curl http://localhost:3000/ready
 | `GET` | `/api/meta/embedded-signup/config` | Public Meta config for frontend SDK |
 | `POST` | `/api/meta/embedded-signup/sessions` | Create onboarding session |
 | `GET` | `/api/meta/embedded-signup/sessions/:id` | Get session status |
-| `POST` | `/api/meta/embedded-signup/complete` | Complete signup (exchange code, save assets) |
+| `POST` | `/api/meta/embedded-signup/complete` | Complete signup (exchange code, save assets). Optional `signup_type`: `standard` (default) or `coexistence` |
 | `POST` | `/api/meta/embedded-signup/events` | Log cancel/error/completed events from frontend |
 
 ### Meta Webhook (control-plane)
@@ -113,6 +113,7 @@ curl http://localhost:3000/ready
 |--------|------|-------------|
 | `GET` | `/api/admin/onboarding` | List sessions (`?status=`, `?limit=`, `?offset=`) |
 | `GET` | `/api/admin/onboarding/:id` | Full session detail with audit log |
+| `POST` | `/api/admin/onboarding/import` | Register a number connected outside our flow, with a system user token (`signup_type`, `access_token`, asset IDs) |
 | `POST` | `/api/admin/onboarding/:id/reconcile` | Retry failed steps using stored token |
 | `POST` | `/api/admin/onboarding/:id/activate-webhook` | Activate per-tenant webhook override |
 | `POST` | `/api/admin/onboarding/:id/rotate-credentials` | Rotate token with new auth code |
@@ -127,10 +128,20 @@ curl http://localhost:3000/ready
 5. Frontend captures WA_EMBEDDED_SIGNUP message events (success/cancel/error)
 6. On success: frontend POST /complete with code + asset IDs (within 30s code TTL)
 7. On cancel/error: frontend POST /events with event metadata
-8. Backend: exchange code -> persist business/WABA/phone -> subscribe app -> register phone -> encrypt & store token
+8. Backend: exchange code -> encrypt & store token -> persist business/WABA/phone -> subscribe app -> register phone
+   (coexistence: no register; request smb_app_data contacts + history sync instead)
 9. Status: assets_saved
 10. Admin later activates per-tenant webhook override -> status: webhook_ready
 ```
+
+### Coexistence (WhatsApp Business app numbers)
+
+- The page launches Embedded Signup with `featureType: 'whatsapp_business_app_onboarding'`; Meta switches to
+  the Coexistence branch when the customer types a number already on the WhatsApp Business app (QR from the app).
+- The finish event is `FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING`; the page sends `signup_type: "coexistence"` to /complete.
+- The backend skips `/register` (the number stays on the app) and calls `POST /{phone}/smb_app_data` with
+  `smb_app_state_sync` and `history` — Meta only accepts this within 24 h of onboarding. A failed sync is logged
+  but doesn't fail the onboarding. The data arrives as `smb_app_state_sync` / `history` webhooks.
 
 ### Reconcile (retry failed steps)
 

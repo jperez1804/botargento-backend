@@ -3,6 +3,7 @@ import { env } from "../config/env.js";
 import type {
   MetaSubscribeAppResponse,
   MetaRegisterPhoneResponse,
+  MetaSmbAppDataResponse,
 } from "../types/meta.js";
 import { graphFetch, GRAPH_BASE } from "./meta-graph.js";
 
@@ -64,6 +65,43 @@ export async function subscribeAppWithOverride(
   );
 
   return data.success;
+}
+
+export type SmbSyncType = "smb_app_state_sync" | "history";
+
+/**
+ * Coexistence: ask Meta to sync the WhatsApp Business app's contacts
+ * ("smb_app_state_sync") or chat history ("history"). Only allowed within 24 h of
+ * onboarding; the data arrives later as webhooks of the same name.
+ * POST /{phone_number_id}/smb_app_data
+ */
+export async function requestSmbAppDataSync(
+  phoneNumberId: string,
+  token: string,
+  syncType: SmbSyncType
+): Promise<string | null> {
+  const url = `${GRAPH_BASE}/${phoneNumberId}/smb_app_data`;
+
+  logger.info({ phoneNumberId, syncType }, "Requesting WhatsApp Business app data sync");
+
+  const data = await graphFetch<MetaSmbAppDataResponse>(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      sync_type: syncType,
+    }),
+  });
+
+  logger.info(
+    { phoneNumberId, syncType, requestId: data.request_id },
+    "App data sync requested"
+  );
+
+  return data.request_id ?? null;
 }
 
 /**

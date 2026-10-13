@@ -19,6 +19,11 @@ export const onboardingSessions = sqliteTable("onboarding_sessions", {
   status: text("status", {
     enum: ["started", "signup_completed", "assets_saved", "webhook_ready", "failed"],
   }).notNull(),
+  // "coexistence" = the number keeps working in the WhatsApp Business app
+  // (featureType whatsapp_business_app_onboarding): no /register, smb_app_data sync instead.
+  signupType: text("signup_type", { enum: ["standard", "coexistence"] })
+    .notNull()
+    .default("standard"),
   metaBusinessId: text("meta_business_id"),
   wabaId: text("waba_id"),
   phoneNumberId: text("phone_number_id"),
@@ -96,6 +101,13 @@ export const phoneNumbers = sqliteTable(
       .notNull()
       .default(false),
     registrationPin: text("registration_pin"),
+    signupType: text("signup_type", { enum: ["standard", "coexistence"] })
+      .notNull()
+      .default("standard"),
+    // Coexistence only: when POST /{phone}/smb_app_data was accepted. Meta allows it
+    // within 24 h of onboarding; the data arrives as smb_app_state_sync / history webhooks.
+    contactsSyncRequestedAt: text("contacts_sync_requested_at"),
+    historySyncRequestedAt: text("history_sync_requested_at"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },

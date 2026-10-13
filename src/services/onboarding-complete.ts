@@ -43,9 +43,11 @@ export async function completeSignup(
     idempotencyKey: `complete_${params.sessionId}`,
   });
 
+  const signupType = params.signupType ?? "standard";
+
   // Step 2: Update session to signup_completed
   db.update(onboardingSessions).set({
-    status: "signup_completed", metaBusinessId: params.businessId,
+    status: "signup_completed", signupType, metaBusinessId: params.businessId,
     wabaId: params.wabaId, phoneNumberId: params.phoneNumberId,
     completedAt: ts, updatedAt: ts,
   }).where(eq(onboardingSessions.id, params.sessionId)).run();
@@ -80,6 +82,7 @@ export async function completeSignup(
       accessToken: tokenResult.accessToken,
       scopes: debugResult?.scopes ?? null,
       expiresAt: debugResult?.expiresAt ?? null,
+      signupType,
     });
     allSteps.push(...result.completedSteps);
 
@@ -102,7 +105,10 @@ export async function completeSignup(
       sessionId: params.sessionId, status: "assets_saved", organizationId: orgId,
       wabaId: params.wabaId, phoneNumberId: params.phoneNumberId,
       appSubscribed: result.appSubscribed, phoneRegistered: result.phoneRegistered,
-      webhookOverrideActive: false, completedSteps: allSteps,
+      webhookOverrideActive: false, signupType,
+      contactsSyncRequested: result.contactsSyncRequested,
+      historySyncRequested: result.historySyncRequested,
+      completedSteps: allSteps,
       message: "Onboarding assets saved. Webhook override pending — activate when tenant infra is ready.",
     };
   } catch (err) {
@@ -127,7 +133,8 @@ export async function completeSignup(
       sessionId: params.sessionId, status: "failed", organizationId: orgId,
       wabaId: params.wabaId, phoneNumberId: params.phoneNumberId,
       appSubscribed: false, phoneRegistered: false,
-      webhookOverrideActive: false, completedSteps: allSteps, failedStep, error: errorMsg,
+      webhookOverrideActive: false, signupType,
+      completedSteps: allSteps, failedStep, error: errorMsg,
       message: "Onboarding partially completed. Use admin reconcile endpoint to retry failed steps.",
     };
   }

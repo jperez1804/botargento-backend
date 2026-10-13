@@ -5,6 +5,7 @@ export interface CompleteSignupParams {
   wabaId: string;
   businessId: string;
   displayPhoneNumber?: string;
+  signupType?: "standard" | "coexistence";
 }
 
 export interface OnboardingEventParams {
@@ -29,6 +30,9 @@ export interface CompleteSignupResult {
   appSubscribed: boolean;
   phoneRegistered: boolean;
   webhookOverrideActive: boolean;
+  signupType: "standard" | "coexistence";
+  contactsSyncRequested?: boolean;
+  historySyncRequested?: boolean;
   message: string;
   completedSteps: string[];
   failedStep?: string;
@@ -39,6 +43,7 @@ export interface SessionDetail {
   id: string;
   organizationId: string | null;
   status: string;
+  signupType: "standard" | "coexistence";
   metaBusinessId: string | null;
   wabaId: string | null;
   phoneNumberId: string | null;
