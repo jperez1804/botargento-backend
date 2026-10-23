@@ -42,6 +42,7 @@ services:
 
 volumes:
   backend_data:
+    external: true
     name: botargento_backend_data
 
 networks:
