@@ -28,3 +28,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Railway export / local DB copies (never commit)
+backups/
+deploy/vps/backend.env

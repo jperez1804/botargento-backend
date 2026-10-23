@@ -84,3 +84,14 @@ Frontend onboarding page → POST /api/meta/embedded-signup/complete → onboard
 8. SQLite WAL mode must be enabled on connection.
 9. All timestamps are ISO 8601 strings.
 10. CORS must be restricted to configured origins only.
+
+## Project Agents (`.claude/agents/`)
+
+Project-scoped subagents, loaded automatically by Claude Code from this repo.
+
+| Agent | Use it for | Can change |
+|-------|-----------|------------|
+| `backend-ops` | Health, logs, Traefik/cert checks, read-only SQLite queries, on-demand backup, restart of the `botargento-backend` container on the VPS | Restart, backup. Nothing else. |
+| `backend-deployer` | Gate (lint/test/build), push to main, watch the GHCR build, pull/up on the VPS, smoke test, rollback by sha tag, single-variable env edits on request | The running image, `backend.env` one key at a time. Never the volume. |
+
+Deployment layout and the Railway → VPS migration runbook: `deploy/vps/MIGRATION.md`.

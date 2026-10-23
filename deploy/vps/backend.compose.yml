@@ -1,0 +1,50 @@
+# BotArgento Embedded Signup Backend — VPS deployment (Hostinger, Traefik)
+#
+# Lives at /opt/n8n/control-plane/backend.compose.yml next to backend.env (mode 0600).
+#
+# Deploy / update:
+#   cd /opt/n8n/control-plane
+#   docker-compose --env-file backend.env -f backend.compose.yml pull backend
+#   docker-compose --env-file backend.env -f backend.compose.yml up -d backend
+#
+# Port 3000 is never published on the host: Traefik reaches it over traefik-public.
+
+services:
+  backend:
+    image: ghcr.io/jperez1804/botargento-backend:${BACKEND_TAG:-latest}
+    container_name: botargento-backend
+    restart: unless-stopped
+    env_file:
+      - backend.env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_PATH: /data/botargento.db
+    volumes:
+      - backend_data:/data
+    networks:
+      - traefik-public
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.botargento-backend.rule=Host(`api.botargento.com.ar`)"
+      - "traefik.http.routers.botargento-backend.entrypoints=websecure"
+      - "traefik.http.routers.botargento-backend.tls=true"
+      - "traefik.http.routers.botargento-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.botargento-backend.service=botargento-backend"
+      - "traefik.http.services.botargento-backend.loadbalancer.server.port=3000"
+
+volumes:
+  backend_data:
+    name: botargento_backend_data
+
+networks:
+  traefik-public:
+    external: true
+    name: traefik-public
