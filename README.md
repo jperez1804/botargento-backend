@@ -10,7 +10,7 @@ Registration and control-plane backend for onboarding business clients to WhatsA
 - **Drizzle ORM** — Schema, migrations, queries
 - **Zod v4** — Runtime validation
 - **pino** — Structured JSON logging
-- **Railway** — Deployment (Docker + persistent volume)
+- **Docker on the Hostinger VPS** — Deployment (GHCR image + Traefik + named volume)
 
 ## Quick Start
 
@@ -178,31 +178,47 @@ pnpm db:generate  # generates new migration SQL
 pnpm db:migrate   # applies it
 ```
 
-## Deployment (Railway)
+## Deployment (Hostinger VPS)
 
-### First Deploy
+The backend runs as a single Docker container on the shared VPS, behind Traefik, at
+`https://api.botargento.com.ar`. Full layout and operating rules: `.claude/agents/backend-ops.md`
+and `.claude/agents/backend-deployer.md`. The original Railway → VPS move is documented in
+`deploy/vps/MIGRATION.md`.
 
-1. Create a Railway project
-2. Add a **volume** mounted at `/data`
-3. Connect the GitHub repo (or use `railway up`)
-4. Set all required environment variables in Railway dashboard
-5. Set `DATABASE_PATH=/data/botargento.db`
-6. Set `NODE_ENV=production`
-7. Railway auto-builds via `Dockerfile` and starts the container
+### Pipeline
 
-### Custom Domain
+1. Push to `main`. `.github/workflows/release.yml` builds and publishes
+   `ghcr.io/jperez1804/botargento-backend:latest` and `:sha-<commit>`.
+2. On the VPS (`ssh vps`, user `deploy`), files live in `/opt/n8n/control-plane/`:
+   `backend.compose.yml` (from `deploy/vps/`) and `backend.env` (secrets, mode 0600, never committed).
+3. Deploy:
 
-Point `api.botargento.com.ar` to Railway's generated domain via CNAME.
+```bash
+ssh vps 'cd /opt/n8n/control-plane && docker-compose --env-file backend.env -f backend.compose.yml pull backend && docker-compose --env-file backend.env -f backend.compose.yml up -d backend'
+```
+
+Migrations are applied at container start (`src/db/client.ts`). To roll back, set
+`BACKEND_TAG=sha-<previous commit>` in `backend.env` and run `up -d` again.
+
+### DNS and TLS
+
+`api.botargento.com.ar` is an **A record** to the VPS IP in Cloudflare, DNS only (grey cloud).
+Traefik obtains the Let's Encrypt certificate automatically via TLS-ALPN; the record must exist
+before the container is (re)created, otherwise the ACME challenge fails until the next recreate.
+
+### Callers of the API
+
+- Onboarding page `https://botargento.com.ar/whatsapp.html` (source: landing repo
+  `landingpage/v5/whatsapp.html`; a copy lives in `onboarding/whatsapp.html`). `API_BASE` must
+  point at `https://api.botargento.com.ar/api/meta/embedded-signup`.
+- Meta App Dashboard → WhatsApp → Configuration: callback URL
+  `https://api.botargento.com.ar/api/webhooks/meta/whatsapp` with `META_WEBHOOK_VERIFY_TOKEN`.
 
 ### Backups
 
-```bash
-# Run backup via Railway CLI
-railway run ./scripts/backup-db.sh
-
-# Download to local machine
-railway run cat /data/botargento.db > local-backup.db
-```
+Nightly at 03:00 (deploy user crontab) via `deploy/vps/backup-cron.sh`, installed as
+`/home/deploy/backup-backend.sh`, into `/home/deploy/backups/backend/` (last 14 kept).
+On demand: `ssh vps '/home/deploy/backup-backend.sh'`.
 
 ## Meta App Setup
 

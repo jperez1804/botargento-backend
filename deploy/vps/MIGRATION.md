@@ -94,13 +94,23 @@ The certificate will be invalid until DNS points here (Let's Encrypt validates v
 
 ## 7. Cutover **[J]**
 
-1. Cloudflare: change `api.botargento.com.ar` from the Railway CNAME to **A → 187.127.6.44**,
-   DNS only (grey cloud). Lower TTL beforehand if it is high.
-2. Wait for Traefik to obtain the certificate: `curl -sI https://api.botargento.com.ar/health`.
-3. Meta App Dashboard → Webhooks → WhatsApp: edit the callback, paste the new verify token,
-   *Verify and Save*. The URL does not change.
-4. Railway dashboard: **stop** the backend service (do not delete yet).
-5. Run a real check: open the onboarding page, confirm it reaches the API (CORS unchanged).
+Reality check from 2026-10-24: the Railway service never had a custom domain. Everything
+called `https://botargento-backend-production.up.railway.app` directly, so `api.botargento.com.ar`
+did not exist and had to be **created**, and every caller had to be repointed.
+
+1. Cloudflare: **add** an A record `api` → 187.127.6.44, DNS only (grey cloud).
+2. Recreate the container (`up -d`). Traefik only retries a failed ACME challenge when the router
+   is re-registered, so if the container started before the record existed this step is required.
+   Confirm: `curl -sI https://api.botargento.com.ar/health` with a valid Let's Encrypt cert.
+3. Onboarding page: set `API_BASE` to `https://api.botargento.com.ar/api/meta/embedded-signup`
+   in the landing repo (`landingpage/v5/whatsapp.html`, published as `/whatsapp.html`) and upload.
+4. Meta App Dashboard → WhatsApp → Configuration: callback URL
+   `https://api.botargento.com.ar/api/webhooks/meta/whatsapp`, new verify token, *Verify and Save*.
+   The backend logs `Meta webhook verification successful`.
+5. Railway has no "stop": disconnect the GitHub repo in Settings (otherwise the next push
+   redeploys there), then `railway down -y` removes the active deployment. Volume and variables
+   stay for rollback until the project is deleted.
+6. Run a real check: open the onboarding page, confirm it reaches the API (CORS unchanged).
 
 ## 8. Post-cutover
 
@@ -112,6 +122,6 @@ The certificate will be invalid until DNS points here (Let's Encrypt validates v
 
 ## Rollback (before step 8)
 
-Cloudflare: point the record back at the Railway CNAME and start the Railway service.
-Railway still has the old secrets and the old database; Meta's verify token must be set
-back to the old value.
+Railway dashboard → Redeploy the removed deployment, repoint the onboarding page and the Meta
+webhook callback at the Railway URL, and set Meta's verify token back to the old value. Railway
+still has the old secrets and the old database until the project is deleted.

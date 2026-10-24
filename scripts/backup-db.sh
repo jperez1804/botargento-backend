@@ -5,7 +5,7 @@
 #
 # Usage:
 #   Local:   ./scripts/backup-db.sh
-#   Railway: railway run ./scripts/backup-db.sh
+#   VPS:     use deploy/vps/backup-cron.sh instead (runs against the Docker volume)
 #
 # Creates a timestamped copy of the SQLite database file.
 # Safe to run while the server is running (uses SQLite .backup API via CLI).

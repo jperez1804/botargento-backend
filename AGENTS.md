@@ -14,7 +14,7 @@ Backend service for Meta WhatsApp Embedded Signup onboarding. Captures signup da
 
 ## Tech Stack
 
-Hono + TypeScript + SQLite (better-sqlite3) + Drizzle ORM + Zod + pino + Railway
+Hono + TypeScript + SQLite (better-sqlite3) + Drizzle ORM + Zod + pino + Docker on the Hostinger VPS (Traefik)
 
 ## Architecture
 
